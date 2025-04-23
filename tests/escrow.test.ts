@@ -359,4 +359,60 @@ describe("escrow", () => {
     expect(await getTokenBalance(bobUsdcAccount)).toEqual(new BN(30_000_000));
     expect(await getTokenBalance(bobWifAccount)).toEqual(new BN(200_000_000));
   });
+
+  test("Offer created by Alice and then canceled, tokens returned", async () => {
+    const offeredUsdc = new BN(10_000_000);
+    const wantedWif = new BN(100_000_000);
+    
+    const getTokenBalance = getTokenBalanceOn(connection);
+  
+    // Initial token balances before creating the offer
+    const initialAliceUsdcBalance = await getTokenBalance(aliceUsdcAccount);
+    
+    // Alice creates an offer
+    const { offerAddress, vaultAddress } = await makeOfferTx(
+      alice,
+      offerId,
+      usdcMint.publicKey,
+      offeredUsdc,
+      wifMint.publicKey,
+      wantedWif
+    );
+    
+    // Check that Alice's USDC balance decreased and the vault now has those tokens
+    expect(await getTokenBalance(aliceUsdcAccount)).toEqual(initialAliceUsdcBalance.sub(offeredUsdc));
+    expect(await getTokenBalance(vaultAddress)).toEqual(offeredUsdc);
+    
+    // Now Alice cancels the offer
+    const cancelOfferTx = async (
+      offerAddress: PublicKey,
+      maker: Keypair,
+    ): Promise<void> => {
+      const transactionSignature = await program.methods
+        .cancelOffer()
+        .accounts({
+          maker: maker.publicKey,
+          offer: offerAddress,
+          tokenProgram: TOKEN_PROGRAM,
+        })
+        .signers([maker])
+        .rpc();
+  
+      await confirmTransaction(connection, transactionSignature);
+    };
+    
+    await cancelOfferTx(offerAddress, alice);
+    
+    // After cancellation, check that Alice's USDC balance is back to initial amount
+    expect(await getTokenBalance(aliceUsdcAccount)).toEqual(initialAliceUsdcBalance);
+    
+    // Try to fetch the offer account - it should not exist anymore
+    try {
+      await program.account.offer.fetch(offerAddress);
+      fail("Offer account should be closed");
+    } catch (e) {
+      // Expected error - account should be closed
+      expect(e).toBeDefined();
+    }
+  });
 });
