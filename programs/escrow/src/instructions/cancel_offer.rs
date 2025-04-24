@@ -47,7 +47,7 @@ pub struct CancelOffer<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn withdraw_and_close_vault(ctx: Context<CancelOffer>) -> Result<()> {
+pub fn cancel_and_withdraw(ctx: Context<CancelOffer>) -> Result<()> {
     let maker_key = ctx.accounts.maker.key();
     let offer_id = ctx.accounts.offer.id.to_le_bytes();
     let bump = ctx.accounts.offer.bump;

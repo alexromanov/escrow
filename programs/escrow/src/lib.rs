@@ -31,6 +31,6 @@ pub mod escrow {
     }
 
     pub fn cancel_offer(context: Context<CancelOffer>) -> Result<()> {
-        instructions::cancel_offer::withdraw_and_close_vault(context)
+        instructions::cancel_offer::cancel_and_withdraw(context)
     }
 }

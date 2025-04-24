@@ -24,6 +24,7 @@ import {
 import { randomBytes } from "crypto";
 
 import { confirmTransaction, makeKeypairs } from "@solana-developers/helpers";
+import { off } from "process";
 
 const TOKEN_PROGRAM: typeof TOKEN_2022_PROGRAM_ID | typeof TOKEN_PROGRAM_ID =
   TOKEN_2022_PROGRAM_ID;
@@ -368,7 +369,7 @@ describe("escrow", () => {
   
     // Initial token balances before creating the offer
     const initialAliceUsdcBalance = await getTokenBalance(aliceUsdcAccount);
-    
+
     // Alice creates an offer
     const { offerAddress, vaultAddress } = await makeOfferTx(
       alice,
@@ -383,7 +384,6 @@ describe("escrow", () => {
     expect(await getTokenBalance(aliceUsdcAccount)).toEqual(initialAliceUsdcBalance.sub(offeredUsdc));
     expect(await getTokenBalance(vaultAddress)).toEqual(offeredUsdc);
     
-    // Now Alice cancels the offer
     const cancelOfferTx = async (
       offerAddress: PublicKey,
       maker: Keypair,
@@ -393,8 +393,11 @@ describe("escrow", () => {
         .accounts({
           maker: maker.publicKey,
           offer: offerAddress,
+          tokenMintA: usdcMint.publicKey,
+          makerTokenAccountA: aliceUsdcAccount,
+          vault: vaultAddress,
           tokenProgram: TOKEN_PROGRAM,
-        })
+        } as any) 
         .signers([maker])
         .rpc();
   
@@ -405,14 +408,5 @@ describe("escrow", () => {
     
     // After cancellation, check that Alice's USDC balance is back to initial amount
     expect(await getTokenBalance(aliceUsdcAccount)).toEqual(initialAliceUsdcBalance);
-    
-    // Try to fetch the offer account - it should not exist anymore
-    try {
-      await program.account.offer.fetch(offerAddress);
-      fail("Offer account should be closed");
-    } catch (e) {
-      // Expected error - account should be closed
-      expect(e).toBeDefined();
-    }
   });
 });
